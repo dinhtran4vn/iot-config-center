@@ -1,0 +1,400 @@
+services:
+  config:
+    container_name: scity-config-service
+    image: iot/scity-config-service:latest
+    ports:
+      - 7720:7720
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status"]
+      interval: 2m
+      start_period: 2m
+      timeout: 10s
+      retries: 3
+    restart: always
+  
+  discovery:
+    container_name: scity-discovery-service
+    image: iot/scity-discovery-service:latest
+    ports:
+      - 8761:8761
+    depends_on:
+      config:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nodetool status"]
+      interval: 2m
+      start_period: 2m
+      timeout: 10s
+      retries: 3
+    restart: always
+  
+  
+  gateway:
+    container_name: scity-gateway-service
+    image: iot/scity-gateway-service:latest
+    ports:
+      - 8080:8080
+    depends_on:
+    config:
+      condition: service_healthy
+    discovery:
+      condition: service_healthy
+    restart: always
+  
+
+  user-service:
+    container_name: scity-user-service
+    image: iot/scity-user-service:latest
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    restart: always
+
+    
+  websocket-service:
+    container_name: scity-websocket-service
+    image: iot/scity-websocket-service:latest
+    ports:
+      - 7757:7757
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    restart: always
+  
+  
+  storage-service:
+    container_name: scity-storage-service
+    image: iot/scity-storage-service:latest
+    ports:
+      - 8810:8810
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    volumes:
+      - ./.storage-media:/home/media
+    restart: always
+
+  camera-service:
+    container_name: scity-camera-service
+    image: iot/scity-camera-service:latest
+    ports:
+      - 8805:8805
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    restart: always
+  
+
+  mqtt-service:
+    container_name: scity-mqtt-service
+    image: iot/scity-mqtt-service:latest
+    ports:
+      - 8806:8806
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    restart: always
+
+
+  rule-engine-service:
+    container_name: scity-rule-engine-service
+    image: iot/scity-rule-engine-service:latest
+    ports:
+      - 8807:8807
+    depends_on:
+      config:
+        condition: service_healthy
+      discovery:
+        condition: service_healthy
+    restart: always
+
+  device-service:
+    container_name: scity-device-service
+    image: iot/scity-device-service:latest
+    ports:
+      - 8803:8803
+    depends_on:
+      - config
+      - discovery
+      - vernemq
+      - cassandra1
+    volumes:
+      - ./.temp-files:/temp/files
+    restart: always
+
+  
+#  scity-ui:
+#    image: iot/scity:aiot
+#    container_name: scity-ui
+#    links:
+#      - gateway
+#    env_file:
+#      - .env
+#    ports:
+#      - 3000:3000
+#    restart: always
+  
+  
+  
+  vernemq:
+    image: vernemq/vernemq:1.10.4.1
+    hostname: vernemq
+    depends_on:
+      - postgresdb
+      # - pgbouncer
+    volumes:
+      - ./vernemq.conf:/etc/vernemq/vernemq.conf:ro
+    environment:
+      DOCKER_VERNEMQ_ACCEPT_EULA: yes
+      DOCKER_VERNEMQ_ALLOW_ANONYMOUS: on
+    ports:
+      - 8888:8888
+    restart: always
+  
+  vernemq1:
+    image: vernemq/vernemq:1.10.4.1
+    hostname: vernemq1
+    depends_on:
+      - postgresdb
+      # - pgbouncer
+      - vernemq
+    environment:
+      DOCKER_VERNEMQ_ACCEPT_EULA: yes
+      DOCKER_VERNEMQ_ALLOW_ANONYMOUS: on
+      DOCKER_VERNEMQ_DISCOVERY_NODE: 172.18.0.12
+    volumes:
+      - ./vernemq.conf:/etc/vernemq/vernemq.conf:ro
+    deploy:
+      replicas: 8
+    restart: always
+  
+  nginx:
+    image: nginx
+    container_name: nginx_lb_vernemq
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "1883:1883"
+    depends_on:
+      - vernemq
+      - vernemq1
+  
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9999:9090
+    restart: always
+  
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    restart: always
+    ports:
+      - 7777:3000
+  
+  postgresdb:
+    restart: always
+    container_name: scity-postgresdb
+    image: postgres:12
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/pgdata
+    command: ["postgres", "-c", "max_connections=10000", "-p", "5432"]
+    volumes:
+      - ./.scity-data:/var/lib/postgresql/pgdata
+      - ./init-db:/docker-entrypoint-initdb.d
+      - ./create_extension_unaccent.sql:/docker-entrypoint-initdb.d/create_extension_unaccent.sql
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - 5432:5432
+    networks:
+      - default
+ 
+# pgbouncer:
+# image: edoburu/pgbouncer:latest
+# container_name: scity-pgbouncer
+# ulimits:
+# nofile:
+# soft: 1000000
+# hard: 1000000
+# env_file:
+# - pgbouncer.env
+# environment:
+# - DB_HOST=postgresdb
+# - DB_PORT=5432
+# - DB_USER=postgres
+# - ADMIN_USERS=postgres,admin
+# - LISTEN_ADDR=*
+# - LISTEN_PORT=6432
+# - MAX_CLIENT_CONN=1000000
+# - DEFAULT_POOL_SIZE=50000
+# - MIN_POOL_SIZE=5000
+# - REVERSE_POOL_SIZE=100
+# - REVERSE_POOL_TIMEOUT=5
+# - MAX_DB_CONNECTIONS=0
+# - LOG_CONNECTIONS=0
+# - LOG_DISCONNECTIONS=0
+# - SERVER_LIFETIME=3600
+# - TCP_KEEPALIVES_IDLE=60
+# - TCP_KEEPALIVES_INTERVAL=30
+# volumes:
+# - ./userlist.txt:/etc/pgbouncer/userlist.txt
+# ports:
+# - "6432:6432"
+# networks:
+# - default
+# depends_on:
+# - postgresdb
+ 
+cassandra1:
+  image: cassandra:latest
+  container_name: cassandra1
+  hostname: cassandra1
+  ports:
+    - "9042:9042"
+  networks:
+    - cassandra-net
+  environment:
+    - CASSANDRA_START_RPC=true       
+    - CASSANDRA_RPC_ADDRESS=0.0.0.0 
+    - CASSANDRA_LISTEN_ADDRESS=auto
+    - CASSANDRA_CLUSTER_NAME = scity
+    - CASSANDRA_DC = datacenter1
+    - CASSANDRA_RACK = RACK1
+    - CASSANDRA_ENDPOINT_SNITCH = GossipingPropertyFileSnitch
+    - CASSANDRA_NUM_TOKENS = 128
+  volumes:
+    - ./init-cql:/docker-entrypoint-initdb.d
+    - ./cassandra-data1:/var/lib/cassandra
+  restart: always
+ 
+cassandra2:
+  image: cassandra:latest
+  container_name: cassandra2
+  hostname: cassandra2
+  ports:
+  - "9043:9042"
+  networks:
+    - cassandra-net
+  environment:
+    - CASSANDRA_START_RPC=true       
+    - CASSANDRA_RPC_ADDRESS=0.0.0.0 
+    - CASSANDRA_LISTEN_ADDRESS=auto
+    - CASSANDRA_CLUSTER_NAME = scity
+    - CASSANDRA_DC = datacenter1
+    - CASSANDRA_RACK = RACK1
+    - CASSANDRA_ENDPOINT_SNITCH = GossipingPropertyFileSnitch
+    - CASSANDRA_NUM_TOKENS = 128
+    - CASSANDRA_SEEDS=cassandra1
+  depends_on:
+    cassandra1:
+      condition: service_started
+  volumes:
+    - ./init-cql:/docker-entrypoint-initdb.d
+    - ./cassandra-data2:/var/lib/cassandra
+  restart: always
+ 
+redis:
+  restart: always
+  container_name: scity-redis
+  image: redis:7.2.5
+  ports:
+    - 6379:6379
+  expose:
+    - 6379
+  env_file:
+    - .env
+  command: ["redis-server", "/usr/local/etc/redis.conf", "--requirepass", "6379"]
+  volumes:
+    - ./.redis-data:/data
+    - ./redis.conf:/usr/local/etc/redis.conf
+  networks:
+    - default
+ 
+zookeeper:
+  image: confluentinc/cp-zookeeper:7.3.0
+  container_name: scity-zookeeper
+  environment:
+  ZOOKEEPER_CLIENT_PORT: 2181
+  ZOOKEEPER_TICK_TIME: 2000
+  restart: always
+  user: "0:0"
+  volumes:
+    - ./zookeeper-data:/var/lib/zookeeper/data
+    - ./.zookeeper-logs:/var/lib/zookeeper/log
+ 
+kafka:
+  image: confluentinc/cp-kafka:7.3.0
+  container_name: scity-kafka
+  ports:
+    - 9092:9092
+  expose:
+    - 9092
+  depends_on:
+    - zookeeper
+  environment:
+    KAFKA_BROKER_ID: 1
+    KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+    KAFKA_LISTENER: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://kafka:29092
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://kafka:29092
+    KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+  restart: always
+  user: "0:0"
+  volumes:
+    - ./.kafka-logs:/logs
+    - ./kafka-data:/var/lib/kafka/data
+  networks:
+    - default
+ 
+caddy:
+  image: caddy:latest
+  restart: unless-stopped
+  ports:
+    - 9090:80
+  volumes:
+    - ./Caddyfile:/etc/caddy/Caddyfile
+    - caddy_data:/data
+    - caddy_config:/config
+    - ./ssl:/home/ssl
+ 
+ 
+volumes:
+  caddy_data:
+  caddy_config:
+  grafana-storage:
+ 
+networks:
+  default:
+    driver: bridge    
+  cassandra-net:
+    driver: bridge

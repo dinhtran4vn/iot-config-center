@@ -1,0 +1,4 @@
+server:
+  servlet:
+    context-path: /camera
+bloom-filter-permission: 100

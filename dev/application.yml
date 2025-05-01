@@ -1,0 +1,89 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  kafka:
+    bootstrap-servers: 192.168.1.91:9092
+    topic:
+      new-example: k8s_dev_topic_new_example
+  data:
+    redis:
+      schedule-key: SCHEDULE_INVOICE_
+      schedule-flag-key: SCHEDULE_FLAG_INVOICE_
+      database: 5
+      port: 6379
+      timeout: 30000
+      host: 192.168.1.91
+      username: default
+      password: 1_Abc_123@
+  cache:
+    type: redis
+    redis:
+      time-to-live: "45000"
+      cache-null-values: "true"
+  session:
+    store-type: redis
+    redis:
+      namespace: dev
+    properties:
+      hibernate:
+        id:
+          new_generator_mappings: "true"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        id:
+          new_generator_mappings: false
+  cassandra:
+    schema-action: CREATE_IF_NOT_EXISTS
+    username: cassandra
+    password: cassandra
+    local-datacenter: datacenter1
+    request:
+      timeout: 20s
+    port: "9042"
+    connection:
+      init-query-timeout: 20s
+      connect-timeout: 20s
+    contact-points: 192.168.1.91
+scity:
+  app:
+    jwtSecret: scitySecretKey
+    jwtRefresh: "AUTH::REFRESH::"
+    jwtExpirationMs: 600000
+    jwtRefreshExpirationMs: 2592000000
+    accountExpirationTime: 1800000
+server:
+  http2:
+    enabled: true
+app:
+  greeting: Hello from config file on gitlab at folder dev
+  bypass-verification: 192168
+  gateway:
+    domain-name: http://gateway:8080
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://discovery:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+logging:
+  file:
+    name: application.log
+  level:
+    root: INFO
+    org.springframework: INFO
+
+es:
+  hostname: 192.168.121.46
+  port: 9200
+  username: elastic
+  password: 12345678x@X
+default-system-name: Auto
