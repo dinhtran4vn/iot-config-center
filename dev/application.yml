@@ -46,7 +46,7 @@ spring:
     connection:
       init-query-timeout: 20s
       connect-timeout: 20s
-    contact-points: 192.168.1.91
+    contact-points: jdbc:cassandra://192.168.1.91:9042/ks_scity_device
 scity:
   app:
     jwtSecret: scitySecretKey
