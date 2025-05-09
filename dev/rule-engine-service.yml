@@ -3,7 +3,7 @@ server:
     context-path: /rule-engine
 spring:
   datasource:
-    url: jdbc:postgresql://192.168.1.91:5432/scity_rule_engine_dev
+    url: jdbc:postgresql://192.168.1.91:5433/scity_rule_engine_dev
     username: postgres
     password: postgres
     driverClassName: org.postgresql.Driver
