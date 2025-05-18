@@ -3,61 +3,62 @@ server:
 spring:
   application:
     name: gateway-service
-  gateway:
-    globalcors:
-      corsConfigurations:
-        "[/**]":
-          allowedOrigins:
-            # LOCALHOST
-            - "http://localhost:3000"
-            - "https://scity.innovation.com.vn"
-            - "https://scity-dev.innovation.com.vn"
-            - "https://aiot.innovation.com.vn"
-            - "http://aiot.innovation.com.vn"
-            - "https://slog.innovation.com.vn"
-          allowedMethods:
-            - "*"
-          allowedHeaders:
-            - "*"
-    routes:
-      - id: storage
-        uri: lb://storage-service
-        predicates:
-          - Path=/storage/**
-      #======================================
-      - id: user
-        uri: lb://user-service
-        predicates:
-          - Path=/user/**
-      #======================================
-      - id: device
-        uri: lb://device-service
-        predicates:
-          - Path=/device/**
-      #======================================
-      - id: websocket
-        uri: lb://websocket-service
-        filters:
-          - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
-        predicates:
-          - Path=/websocket/**
-      #======================================
-      - id: mqtt
-        uri: lb://mqtt-service
-        predicates:
-          - Path=/mqtt/**
-      #======================================
-      - id: rule-engine
-        uri: lb://rule-engine-service
-        predicates:
-          - Path=/rule-engine/**
-      #======================================
-      - id: camera
-        uri: lb://camera-service
-        predicates:
-          - Path=/camera/**
-      #======================================
-      - id: media
-        uri: lb://media-service
-        predicates:
-          - Path=/media/**
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          "[/**]":
+            allowedOrigins:
+              # LOCALHOST
+              - "http://localhost:3000"
+              - "https://scity.innovation.com.vn"
+              - "https://scity-dev.innovation.com.vn"
+              - "https://aiot.innovation.com.vn"
+              - "http://aiot.innovation.com.vn"
+              - "https://slog.innovation.com.vn"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+      routes:
+        - id: storage
+          uri: lb://storage-service
+          predicates:
+            - Path=/storage/**
+        #======================================
+        - id: user
+          uri: lb://user-service
+          predicates:
+            - Path=/user/**
+        #======================================
+        - id: device
+          uri: lb://device-service
+          predicates:
+            - Path=/device/**
+        #======================================
+        - id: websocket
+          uri: lb://websocket-service
+          filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+          predicates:
+            - Path=/websocket/**
+        #======================================
+        - id: mqtt
+          uri: lb://mqtt-service
+          predicates:
+            - Path=/mqtt/**
+        #======================================
+        - id: rule-engine
+          uri: lb://rule-engine-service
+          predicates:
+            - Path=/rule-engine/**
+        #======================================
+        - id: camera
+          uri: lb://camera-service
+          predicates:
+            - Path=/camera/**
+        #======================================
+        - id: media
+          uri: lb://media-service
+          predicates:
+            - Path=/media/**
