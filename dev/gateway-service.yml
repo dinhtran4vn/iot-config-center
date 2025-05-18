@@ -60,4 +60,4 @@ spring:
       - id: media
         uri: lb://media-service
         predicates:
-          - Path=/camera/**
+          - Path=/media/**
